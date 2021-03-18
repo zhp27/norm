@@ -121,13 +121,13 @@ def file_creation(doc):
     for i in range(1,l):
        p1=normDoc.paragraphs[i] 
        l2=len(p1.text)
-       
+       #join small lines of lists 
        if l2<50:
            continue
        for j in  range(i+1,l):
            p=normDoc.paragraphs[j] 
            l1=len(p.text)         
-           if l1>30: 
+           if l1>50: 
                break          
                
            else:
@@ -141,12 +141,13 @@ def file_creation(doc):
     
 #main code
 
+#read the doc
 doc = Document('test3.docx')
 Paras = doc.paragraphs
 normDoc= Document()
 
 for p in Paras: 
-    
+    #integrate pargraphs
     p.keep_with_next=True 
     p.keep_together=True 
     
@@ -157,7 +158,7 @@ for p in Paras:
         CurPNCC=cur_remove(T)
         Cur=convert_num(CurPNCC)
         #CurP=Cur.lower()  
-              
+             
         CurPN=clean_text(Cur)
         CurPNC=Country_abv(CurPN) 
                 
