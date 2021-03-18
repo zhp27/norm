@@ -10,6 +10,7 @@ import re
 import spacy
 from nltk import sent_tokenize
 import inflect
+from docx.enum.style import WD_STYLE_TYPE
 n2s = inflect.engine()
 
 
@@ -121,7 +122,7 @@ def file_creation(doc):
     for i in range(1,l):
        p1=normDoc.paragraphs[i] 
        l2=len(p1.text)
-       #join small lines of lists 
+       
        if l2<50:
            continue
        for j in  range(i+1,l):
@@ -141,13 +142,14 @@ def file_creation(doc):
     
 #main code
 
-#read the doc
 doc = Document('test3.docx')
 Paras = doc.paragraphs
 normDoc= Document()
+st=doc.styles
+
 
 for p in Paras: 
-    #integrate pargraphs
+    
     p.keep_with_next=True 
     p.keep_together=True 
     
@@ -158,7 +160,7 @@ for p in Paras:
         CurPNCC=cur_remove(T)
         Cur=convert_num(CurPNCC)
         #CurP=Cur.lower()  
-             
+              
         CurPN=clean_text(Cur)
         CurPNC=Country_abv(CurPN) 
                 
