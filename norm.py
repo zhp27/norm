@@ -9,13 +9,13 @@ from docx import Document
 import re
 import spacy
 from nltk import sent_tokenize
-import inflect
+
 from docx.enum.style import WD_STYLE_TYPE
-n2s = inflect.engine()
 
+#replace the inflict
+from num2words import num2words
 
-
-#perform NER
+#perform NER 
 def NER_d(sentence):    
     doc = nlp(sentence) 
     ne=[]
@@ -26,11 +26,10 @@ def NER_d(sentence):
         
     return ne
 
-#convert times to string
+#convert numbers and dates to strings using regex
 def convert_num(text):
     timer=re.match(r'^(([0-1]{0,1}[0-9]( )?(AM|am|aM|Am|PM|pm|pM|Pm))|(([0]?[1-9]|1[0-2])(:|\.)[0-5][0-9]( )?(AM|am|aM|Am|PM|pm|pM|Pm))|(([0]?[0-9]|1[0-9]|2[0-3])(:|\.)[0-5][0-9]))', text)    
-    if timer:
-        
+    if timer:        
         time=timer.group()
         time1=time.replace(':', ' ')
         
@@ -39,20 +38,24 @@ def convert_num(text):
     mo=re.findall(r'\d+', text)
     if mo:        
         for item in mo:
-            sa=n2s.number_to_words(item)
-            text= text.replace(item,sa)
+            sa=num2words(item)            
+            sa=sa.replace('\r',' ')
+            text= text.replace(item,sa)       
+            
+             
     return text
         
 
-    
+ 
 
-#removing symbolls
+#removing symbolls and runs
 def clean_text(text):
     text = text.replace('\r', ' ')
     text = text.replace('\n', ' ')
-    puncts='_-()"”“©—*:,.'
+    puncts='_-()"”“©—*:'
     for sym in puncts:
         text= text.replace(sym,' ')
+        
     reps='%&/#+'
     for sym in reps:
         if sym=='%':
@@ -65,13 +68,42 @@ def clean_text(text):
             text= text.replace(sym,' number ')
         if sym=='+':
             text= text.replace(sym,' plus ')
+        if sym=='=':
+            text= text.replace(sym,' equals ')
     return text
 #Remove country abriviations
 def Country_abv(text):    
-    abbrevs={'USA':'United States','GB':'Great Britain'}
-    for abbrev in abbrevs:
-        text= text.replace(abbrev,abbrevs[abbrev])
-    return text
+    acronyms = [
+        ('U.S.', 'United States'), 
+        ('USA', 'United States'),
+        ('US', 'United States'),
+        ('U.S.', 'United States'),
+        ('UK', 'United Kingdom'),
+        ('U.K.', 'United Kingdom'),
+        ('Great Britain', 'United Kingdom'),
+        ('Britain', 'United Kingdom'),
+        
+        
+    ]
+    pattern = '|'.join('(%s)' % re.escape(match) for match, replacement in acronyms)
+    substitutions = [match for replacement, match in acronyms]
+    replace = lambda m: substitutions[m.lastindex - 1]
+    return re.sub(pattern, replace, text)
+def lang_abv(text):    
+    acronyms = [
+        ('i.e.', 'for example'),
+        ('e.g.', 'for instance') ,      
+        ('’ve',' have' ),
+        ('’re', ' are'),        
+        ('I’m',' I am' ),
+        ('n’t', ' not'),
+        ('’s', ' is')
+        
+    ]
+    pattern = '|'.join('(%s)' % re.escape(match) for match, replacement in acronyms)
+    substitutions = [match for replacement, match in acronyms]
+    replace = lambda m: substitutions[m.lastindex - 1]
+    return re.sub(pattern, replace, text)
 
 #convert money symbols
 def get_text(doc):   
@@ -79,6 +111,7 @@ def get_text(doc):
     for para in doc:
         fullText.append(para.text)
     return '\n'.join(fullText)  
+#replace currency values such as $ with their respective text
 def cur_remove(text):
     t=''
     sp=text.split()
@@ -103,10 +136,6 @@ def cur_remove(text):
         t=t +' ' +w        
     return t
 
-'''def remove_th(text):
-    
-    text.replace(r'/(\d+)(st|nd|rd|th)/', r'1');
-    print(text)'''
     
 #concatenate lists and bullet points and removing empty line
 def file_creation(doc):    
@@ -118,57 +147,89 @@ def file_creation(doc):
     st=str(p1.text)
        #print(st)
     fnormDoc.add_paragraph(st)
-    
-    for i in range(1,l):
+    #connct succesive lines
+    i=0
+    while i<l-1:
+       i=i+1    
+       #print(i)
        p1=normDoc.paragraphs[i] 
-       l2=len(p1.text)
-       
-       if l2<50:
-           continue
-       for j in  range(i+1,l):
-           p=normDoc.paragraphs[j] 
-           l1=len(p.text)         
-           if l1>50: 
-               break          
-               
-           else:
-               p1.add_run(p.text)
-       
+       l2=len(p1.text)       
+       if l2<50:           
+           for j in  range(i+1,l):
+               p=normDoc.paragraphs[j] 
+               l1=len(p.text)         
+               if l1>=50: 
+                   i=j
+                   p1.add_run(p.text)
+                   
+                   break          
+                   
+               else:
+                   p1.add_run(p.text) 
+                   p1.add_run(',')
+                   i=j
+                   
+       else:
+           p1=normDoc.paragraphs[i]
+       #print(p1.text)
        st=str(p1.text)
        #print(st)
        fnormDoc.add_paragraph(st)
-       fnormDoc.save("norm.docx")
+       fnormDoc.save("bench3_n.docx")
 
-    
+def list_norm(pars):   
+    noList= Document()
+
+    for p in Paras:
+        for run in p.runs:
+            x=re.sub(r'\w[.)]\s*', '', run.text) 
+            noList.add_paragraph(x)
+    return noList
+#removing all the styles
+def remove_styles(doc):
+        
+    st=doc.styles
+    for s in st:    
+        strs=s.name        
+        st[strs].delete
+    return doc
+
 #main code
 
-doc = Document('test3.docx')
+doc = Document('bench3_un.docx')
 Paras = doc.paragraphs
+docwl = list_norm(Paras)
+doc =remove_styles(docwl)
+
 normDoc= Document()
-st=doc.styles
 
-
-for p in Paras: 
-    
-    p.keep_with_next=True 
+for p in Paras:
     p.keep_together=True 
-    
+    p.keep_with_next=True
     for run in p.runs:
-        
-        T=run.text  
-              
+        run.text.replace('\n\n', '\n')  
+        run.text.replace('\r\r', '\r') 
+        T=run.text       
         CurPNCC=cur_remove(T)
         Cur=convert_num(CurPNCC)
-        #CurP=Cur.lower()  
-              
-        CurPN=clean_text(Cur)
-        CurPNC=Country_abv(CurPN) 
+        #CurP=Cur.lower()   
+        CurPNC=Country_abv(Cur) 
+        CurL=lang_abv(CurPNC)
+            
+        CurPN=clean_text(CurL)
+        
                 
-        normDoc.add_paragraph(CurPNC)
+        normDoc.add_paragraph(CurPN)
 file_creation(normDoc)
+
+       
+
+
     
-    #normDoc.save("a.docx")
     
+       
+    
+        
         
        
   
